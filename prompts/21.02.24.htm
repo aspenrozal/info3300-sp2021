@@ -29,6 +29,7 @@
 
   <svg id="all" height="400" width="400" style="background: #F5F5F5">
     <!--- We're going to be populating this dynamically today --->
+
   </svg>
   <br/>
   <svg id="male" height="400" width="300" style="background: #F5F5FF">
@@ -56,32 +57,147 @@
   passengersMale = [{"age": 0, "lived": 11, "died": 7}, {"age": 5, "lived": 9, "died": 8}, {"age": 10, "lived": 7, "died": 8}, {"age": 15, "lived": 4, "died": 28}, {"age": 20, "lived": 16, "died": 94}, {"age": 25, "lived": 25, "died": 90}, {"age": 30, "lived": 49, "died": 238}, {"age": 35, "lived": 11, "died": 57}, {"age": 40, "lived": 7, "died": 50}, {"age": 45, "lived": 6, "died": 33}, {"age": 50, "lived": 9, "died": 23}, {"age": 55, "lived": 4, "died": 16}, {"age": 60, "lived": 2, "died": 15}, {"age": 65, "lived": 0, "died": 9}, {"age": 70, "lived": 0, "died": 5}, {"age": 75, "lived": 0, "died": 1}, {"age": 80, "lived": 1, "died": 0}];
 
   // --- 1. Let's make a doubled histogram of all passengers on the Titanic
-  
-  
-  
+  let svg = d3.select("svg#all");
+  let width = svg.attr("width");
+  let height = svg.attr("height");
 
+  //This is an anon "getter" function. D3.max gets an array and in this array its going to fun the function on. Whatever it gets back is the thing it will find the max for
+  let maxMortality = d3.max(passengers, (d) => {
+    return Math.max(d['lived'], d['died']);
+  });
+  
+  console.log(maxMortality);
 
+  //Scales are function that convert data values to pixel values
+  // X
+  let ageScale = d3.scaleLinear()
+                  //Domain and Range expect an array with min, max values
+                   .domain([0, 80])
+                   .range([10, width-10])
+  
+  // Y
+  let livedScale = d3.scaleLinear()
+                     .domain([0, maxMortality])
+                     .range([0, height/2.0 - 10])               
+  
+  // d= i = index
+  passengers.forEach( (d, i)  => {
+    //console.log(d);
+    svg.append("line")
+       .attr("x1", ageScale( d['age'] ) )
+       .attr("x2", ageScale( d['age'] ) )
+       .attr("y1", height/2.0 )
+       .attr("y2", height/2.0 - livedScale( d['lived']) )
+       .style("stroke", "#f293e5")
+       .style("stroke-width", 10)
+  });
   // --- 2. What about deaths? (oop, things are getting pretty dark)
   
+  let diedScale = d3.scaleLinear()
+                    .domain([0, maxMortality])
+                    .range([0, height/2.0 - 10])
   
-  
-  
+  passengers.forEach( (d, i)  => { 
+      svg.append("line")
+       .attr("x1", ageScale( d['age'] ) )
+       .attr("x2", ageScale( d['age'] ) )
+       .attr("y1", height/2.0 )
+       .attr("y2", height/2.0 + diedScale( d['died']) )
+       .style("stroke", "#a6e8ed")
+       .style("stroke-width", 10)
+  });
 
+  passengers.forEach( (d, i) => {
+    svg.append("text")
+       .text( d['age'] )
+       .style("font-size", "15px")
+       .style("text-anchor", "middle")
+       .attr("x", ageScale( d['age'] ) )
+       .attr("y", height/2.0 - (livedScale( d['lived']) + 10 ) )
+       
+  });
 
   // --- 3. Let's break the data down by gender now!
-  
-  
-  
+  passengersMale.forEach( (d) => {
+    if ( (d.lived + d.died ) < 1 ) {
+      d.percentSurvived = 0;
+    }
+    else
+    //equivalent to d['percentsurvived'] = d['lived']
+    d.percentSurvived = d.lived / (d.lived + d.died);
+  } );
+  passengersFemale.forEach( (d) => {
+    if ( (d.lived + d.died ) < 1 ) {
+      d.percentSurvived = 0;
+    }
+    else
+    //equivalent to d['percentsurvived'] = d['lived']
+    d.percentSurvived = d.lived / (d.lived + d.died);
+  } );
 
-  //svg.append("text").text("Male Passengers").attr("x",10).attr("y",20).style("font-size","15px");
-  
-  
-  
+  // SEX -------------------------------------
+  console.log(passengersMale);
 
-  //svg = d3.select("svg#female");
-  //svg.append("text").text("Female Passengers").attr("x",10).attr("y",20).style("font-size","15px");
+  svg = d3.select("svg#male");
+  width = svg.attr("width");
+  height = svg.attr("height");
   
+  // MALE ------------------------------------
+  svg.append("text").text("Male Passengers").attr("x",10).attr("y",20).style("font-size","15px");
   
+  ageScale = d3.scaleLinear()
+                //Domain and Range expect an array with min, max values
+                .domain([0, 80])
+                .range([10, width-10])
+  
+  let percentScale = d3.scaleLinear()
+                       .domain( [0 , 1] )
+                       .range( [height - 10, 30] )
+
+  let colorScale = d3.scaleLinear ()
+                     .domain( [0, 1] )
+                     .range( ['pink', 'lavender'] ) 
+                     //interpolation is the blending of color
+                     .interpolate( d3.interpolateHcl )
+
+  passengersMale.forEach( (d)  => { 
+      svg.append("line")
+       .attr("x1", ageScale( d.age ) )
+       .attr("x2", ageScale( d.age ) )
+       .attr("y1", height - 10 )
+       .attr("y2", percentScale( d.percentSurvived) )
+       .style("stroke", colorScale( d.percentSurvived ) )
+       .style("stroke-width", 10)
+      svg.append("text")
+       .text( d['age'] )
+       .style("font-size", "10px")
+       .style("text-anchor", "middle")
+       .attr("x", ageScale( d['age'] ) )
+       .attr("y", percentScale( d.percentSurvived) - 10 )
+  });
+
+  // FEMALE ---------------------------------                     
+  svg = d3.select("svg#female");
+  svg.append("text").text("Female Passengers").attr("x",10).attr("y",20).style("font-size","15px");
+
+  width = svg.attr("width");
+  height = svg.attr("height");
+  
+  passengersFemale.forEach( (d)  => { 
+      svg.append("line")
+       .attr("x1", ageScale( d.age ) )
+       .attr("x2", ageScale( d.age ) )
+       .attr("y1", height - 10 )
+       .attr("y2", percentScale( d.percentSurvived) )
+       .style("stroke", colorScale( d.percentSurvived ) )
+       .style("stroke-width", 10)
+      svg.append("text")
+       .text( d['age'] )
+       .style("font-size", "10px")
+       .style("text-anchor", "middle")
+       .attr("x", ageScale( d['age'] ) )
+       .attr("y", percentScale( d.percentSurvived) - 10 )
+  });
   
   </script>
 
