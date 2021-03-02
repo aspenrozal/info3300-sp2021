@@ -13,7 +13,13 @@
   <script src="https://d3js.org/d3.v6.min.js"></script>
   
   <style>
-  
+  .gridlines line {
+    stroke: #bbb;
+  }
+
+  .gridlines .domain {
+    stroke: none;
+  }
     
 
   </style>
@@ -54,47 +60,104 @@
 
     // --- 1
     // Let's begin by exploring commands for loading data
+    //console.log( "---- First line of code ----" );
+    //console.log( d3.json("../datasets/titanic.json"));
+    //console.log( "When will this print" );
     
+    //A promise says that while I take time loading, finish loading the page. The ".then" is what we run when the promise is fulfilled.
+    //You can also add after ".then" to add .error
+    //d3.json( "../datasets/titanic.json" ).then( data => {
+    //  console.log( data );
+      
+
+    //} );
+    //console.log( "2 --- When will this print" );
     
-    
-    
-    
-    
-  
     // --- 2
     // Let's make a plain old scatterplot
 
     // 0. Find our SVG and get that ready
     //     We're going to use a new way of padding that makes axes easier
-    
-    
-    
-    
-    // 1. Import some CSV data
-    
-    
-      
-    // 2. Check for data issues
-    
-    
-    
+    const svg = d3.select( "svg#scatterplot" );
+    const width = svg.attr( "width" );
+    const height = svg.attr( "height" );
+    const margins = {"top":10, "right":10, "bottom":50, "left":50};
+    const chartWidth = width - margins.left -margins.right;
+    const chartHeight = height - margins.top - margins.bottom;
+
+    // This "g" tag is going to automatically adjust our plot space for the margins given
+    //the translate space is x-motion, y-motion
+    let scatter = svg.append( "g" ).attr( "transform", "translate( "+margins.left+", "+margins.top+")" );
     
 
+    
+    // 1. Import some CSV data
+    d3.csv("..//datasets/gapminder.csv").then( data => {
+      
+    // 2. Check for data issues
+    data.forEach( (d, i ) => {
+      d['life'] = Number( d['Life Expectancy'] ) 
+      d['gdp'] = Number( d['GDP/Person (PPP$)'] ) 
+      //Doesn't work because of commas in data
+      //d['pop'] = Number( d['Total Population'] ) 
+      //Replace function gets a regex and then the thing you want to replace it with
+      d['pop'] = Number( d['Total Population'].replace(/,/g , "") )
+
+    } );
+    
+
+    //Filter out the bad points
+    //Like forEach, filter will iterate over each datapoint. However, for each data point it will return a bool
+    //True means keep, false means get rid of it
+    data = data.filter( (d) => { return d.gdp != 0 && d.life != 0 && d.pop != 0; } ) 
+    console.log( data );
+
+
     // 3. Let's build some scales
+    //With multiple variables, extent takes the dataset first and then the specific variable that you want
+    const gdpExtent = d3.extent( data, d => d['gdp'] );
+    const lifeExtent = d3.extent( data, d => d['life'] );
+    const popExtent = d3.extent( data, d => d['pop'] );
     
-    
-    
+    //x-axis
+    const gdpScale = d3.scaleLinear().domain(gdpExtent).range( [0, chartWidth] );
+    //Flipping the range because of the y-axis
+    const lifeScale = d3.scaleLinear().domain(lifeExtent).range( [chartHeight, 0] );
+    const popScale = d3.scaleLinear().domain( popExtent ).range( [5, 10] );
     
     // 4. Start plotting circles and see what happens
-    
+    data.forEach( (d,i) => { 
+      scatter.append( "circle" )
+             .attr( "cx", gdpScale( d.gdp ) )
+             .attr( "cy", lifeScale( d.life ) )
+             .attr( "r", popScale( d.pop ) )
+             .attr( "fill", "steelblue" )
+             .attr( "opacity", 0.8)
+             //If a point looks weird you can use the index variable below to track it down
+             .attr( "index", i );
+
+    });
 
 
     
     // ---- 3
     // 5. Let's add some axes
+    let leftAxis = d3.axisLeft( lifeScale );
+    svg.append( "g" ).lower()
+        .attr( "class", "y axis")
+        .attr( "transform", "translate( "+ (margins.left-10) +", "+ margins.top +")" )
+        //.call will run the function it is given on your chain
+        .call( leftAxis )
+
+    let bottomAxis = d3.axisBottom( gdpScale).ticks( 6 );
+    svg.append( "g" ).lower()
+        .attr( "class", "x axis")
+        .attr( "transform", "translate( "+ (margins.left) +", "+ (margins.top+ chartHeight + 10) +")" )
+        //.call will run the function it is given on your chain
+        .call( bottomAxis );
     
     
-    
+        
     // 6A. We can manually make some gridlines
     //  It would work fine for HW3, but I don't recommend it once you start using axis labels
     
@@ -109,12 +172,22 @@
     // }
 
     // 6B. Or we can use axes in a clever way
+    let leftGridlines = d3.axisLeft( lifeScale ).tickFormat( "" ).tickSize( -chartWidth-10 );
+    svg.append( "g" ).lower()
+        .attr( "class", "y gridlines")
+        .attr( "transform", "translate( "+ (margins.left-10) +", "+ margins.top +")" )
+        //.call will run the function it is given on your chain
+        .call( leftGridlines )
     
+    let bottomGridlines = d3.axisBottom( gdpScale ).tickFormat( "" ).ticks( 6 ).tickSize( -chartHeight-10 );
+    svg.append( "g" ).lower()
+        .attr( "class", "x gridlines")
+        .attr( "transform", "translate( "+ (margins.left) +", "+ (margins.top + chartHeight + 10) +")" )
+        //.call will run the function it is given on your chain
+        .call( bottomGridlines )
     
-
   
-  
-
+  });
 
   </script>
 
