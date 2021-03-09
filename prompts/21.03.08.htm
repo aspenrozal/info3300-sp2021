@@ -107,18 +107,56 @@
   function updateChart(circles) {
     
     // Check out how the circles array changes over time
-    console.log(circles);
+    //console.log(circles);
     
     // 1. Old way
+    //You must start with selectAll .data is a signal for a data join. All of the circles that we have are stored in elements
+    // let elements = demo.selectAll( "circle" )
+    //                    .data( circles )
 
-    
-    
+    // // Whatever the data says shouldn't exist, remove it
+    // elements.exit()
+    //         .remove();
+
+    // // For anything that needs to be created, append a circle and set attr
+    // elements.enter()
+    //         .append( "circle" )
+    //         //Static attributes
+    //         .attr( "r", 20 )
+    //         //Selectall is everything from the start, enter() is all of the new things we have created. Merge, merges them both together
+    //         .merge( elements )
+    //         //when you use an anon function, it is like a forEach loop
+    //         .attr( "cx", d => d[ 'x' ] )
+    //         .attr( "cy", d => d[ 'y' ] )
+    //         .attr( "fill", d => colorScale( d.age ) );
+
     // 2. New way - shorthand version
-    
-    
+    //join is going to remove (.exit), add circles, and merge (in one line)
+    demo.selectAll( "circle" ).data( circles )
+        .join( "circle" )
+        .attr( "r", 20 )
+        .attr( "cx", d => d[ 'x' ] )
+        .attr( "cy", d => d[ 'y' ] )
+        .attr( "fill", d => colorScale( d.age ) );
     
     // 3. New way - extended version
-    
+    // demo.selectAll( "circle" ).data( circles )
+    //     .join( enter => {
+    //       enter.append( "circle" )
+    //            .attr( "cx", d => d[ 'x' ] )
+    //            .attr( "cy", d => d[ 'y' ] )
+    //            .attr( "fill", d => colorScale( d.age ) )
+    //            .attr( "r", 0 )
+    //            .call( enter => enter.transition().delay( 500 ).attr( "r", 20) );
+    //     }, 
+    //     update => {
+    //       update.attr( "cx", d => d[ 'x' ] )
+    //             .attr( "cy", d => d[ 'y' ] )
+    //             .attr( "fill", d => colorScale( d.age ) );
+    //     }, 
+    //     exit => {
+    //       exit.remove();
+    //     });
     
     
     
@@ -212,78 +250,59 @@
     
   
   // CONVERT TO USE A DATA JOIN
-  data.forEach( (d, i) => {
-    
-    let circle = chartArea.append("circle")
-        .attr("cx", yearScale(d['year']))
-        .attr("cy", grossScale(d['worldwide_gross']+1))
-        .attr("r", imdbScale(d['imdb_rating']))
-        .attr("opacity", 0.8)
-        .attr("fill", genreScale(d['Main_Genre']) )  // refer to scaleOrdinal in scales section
-        .attr("label", d["title"])
-        .attr("genre", d["Main_Genre"]);
-    
-    
-    // Also will need updating?
-    circle.on("mouseover", function() {
-      
-      d3.select(this)
-        .transition().duration(200)
-        .attr("stroke","black")
-        .attr("stroke-width", 4)
-        .attr("r", imdbScale(d['imdb_rating']) + 2)
-        .attr("fill", lighten( genreScale(d['Main_Genre']) ));
-      
-      d3.select("#label").text(d['title']);
-    });
-    
-    circle.on("mouseout", function() {
-      
-      d3.select(this)
-        .transition().duration(200)
-        .attr("stroke-width", 0)
-        .attr("r", imdbScale(d['imdb_rating']))
-        .attr("fill", genreScale(d['Main_Genre']) );
-      
-      d3.select("#label").text("");
-    });
-      
-    
-
-  });
-  // done with forEach
+  //            Where ele live, select the type of ele (add a class)
+  let circles = chartArea.selectAll( "circle.datapoint" ).data( data )
+                         .join( "circle" )
+                         .attr( "class", "datapoint" )
+                         .attr("opacity", 0.8)
+                         .attr("cx", d => yearScale(d['year']))
+                         .attr("cy", d => grossScale(d['worldwide_gross']+1))
+                         .attr("r", d => imdbScale(d['imdb_rating']))
+                         .attr("fill", d => genreScale(d['Main_Genre']) )
+                         //evt is the "special event"
+                         .on( "mouseover", function(evt) {
+                          d3.select( this )
+                            .transition().duration(200)
+                            .attr("stroke-width", 2.5)
+                            .attr( "stroke", "black" )
+                            .attr("r", d => imdbScale(d['imdb_rating']) + 2)
+                            .attr("fill", d => genreScale(d['Main_Genre']) );
+                          //Datum is singular
+                          d3.select( "#label" ).text( d3.select( this ).datum()[ 'title' ] );  
+                         })
+                         .on( "mouseout", function() {
+                          d3.select(this)
+                            .transition().duration(200)
+                            .attr("stroke-width", 0)
+                            .attr("r", d => imdbScale(d['imdb_rating']))
+                            .attr("fill", d => genreScale(d['Main_Genre']) );
+                          d3.select("#label").text("");
+                         });
   
   
   // Does the legend need updating too?
-  console.log(genreScale.domain());
+  //console.log(genreScale.domain());
 
-  genreScale.domain().forEach( function(d,i) {
+  genreScale.domain().forEach( function( d, i ) {
     
-    console.log(d);
+    //console.log(d);
     d3.select("#scatterLegend")
       .append("span")
       .text(d)
       .style("color", genreScale(d) )
       .on("click", function() {
-        
-        d3.selectAll("#scatterplot circle").each( function() {
-          
-          let element = d3.select(this);
-          if (element.attr("genre") === d) {
-            //matches
-            element.attr("visibility", "");
+
+        circles.attr( "visibility", circleD => {
+          if ( d === circleD.Main_Genre ) {
+            return "";
           }
           else {
-            //not match
-            element.attr("visibility", "hidden");
+            return "hidden";
           }
-          
         });
-        
-        
+               
       });
-    
-    
+  
   });
     
 });
