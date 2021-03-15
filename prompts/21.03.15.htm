@@ -78,51 +78,76 @@
   // Mercifully, the data import cleanly (because I generated them using a Python script!)
   console.log(yearData);
   
-  
-  
-  
-  
-  
-  // // Make some axis labels and gridlines the usual way
-  // let leftAxis = d3.axisLeft(percentScale).tickFormat(d3.format('.0%'));
-  // let leftGridlines = d3.axisLeft(percentScale)
-  //                       .tickSize(-chartWidth-10)
-  //                       .tickFormat("")
-  // annotations.append("g")
-  //            .attr("class", "y axis")
-  //            .attr("transform",`translate(${margin.left-10},${margin.top})`)
-  //            .call(leftAxis)
-  // annotations.append("g")
-  //            .attr("class", "y gridlines")
-  //            .attr("transform",`translate(${margin.left-10},${margin.top})`)
-  //            .call(leftGridlines);
+  //Y-AXIS ------
+  const percentScale = d3.scaleLinear().domain( [ 0, 1 ] ).range( [ chartHeight, 0 ] );
+  let leftAxis = d3.axisLeft(percentScale).tickFormat(d3.format('.0%'));
+  let leftGridlines = d3.axisLeft(percentScale)
+                        .tickSize(-chartWidth-10)
+                        .tickFormat("")
+  annotations.append("g")
+              .attr("class", "y axis")
+              .attr("transform",`translate(${margin.left-10},${margin.top})`)
+              .call(leftAxis)
+  annotations.append("g")
+              .attr("class", "y gridlines")
+              .attr("transform",`translate(${margin.left-10},${margin.top})`)
+              .call(leftGridlines);
+
   // let bottomAxis = d3.axisBottom(genreScale)
-  // // We're not making gridlines, since they'll just stick up from the bars
-  // annotations.append("g")
-  //            .attr("class", "x axis")
-  //            .attr("transform",`translate(${margin.left},${chartHeight+margin.top+10})`)
-  //            .call(bottomAxis);
+  let bottomAxis = d3.axisBottom();
+  let bottomAxisG = annotations.append("g")
+                               .attr("class", "x axis")
+                               .attr("transform",`translate(${margin.left},${chartHeight+margin.top+10})`);
+  // NOW TURN IT INTO A FUNCTION---------------------------------------------------------
+  function updateBars( yearKey ) {
+    const data = yearData[ yearKey ]
+    console.log( data );
+
+    // const data = yearData[ 'All Years' ];
+    // console.log( data );
+
+    //X-AXIS ------
+    const genres = d3.map( data, d => d.genre );
+    console.log( genres );
+    const genreScale = d3.scaleBand().domain( genres ).range( [ 0 , chartWidth ] )
+                                      .padding( 0.05 );
+    
+    bottomAxis.scale( genreScale );
+    bottomAxisG.call( bottomAxis );
+
+    chartArea.selectAll('rect.bar').data( data, d => d.genre )
+             .join( enter => enter.append('rect')
+                                  .attr('class','bar')
+                                  .attr("fill", "steelblue")
+                                  .attr("x", d => genreScale(d.genre))
+                                  .attr("y", d => percentScale(d.percentpass))
+                                  .attr("height", d => percentScale(0) - percentScale(d.percentpass))
+                                  .attr("width", genreScale.bandwidth())
+                                  .attr("opacity", 0) // Set opacity low, then animate to 1 to make them fade in
+                                  .call( enter => enter.transition().attr('opacity',1) ),
+                    update => update.call( update => update.transition()  // Animate resizing and movement
+                                                           .attr("fill", "steelblue")
+                                                           .attr("x", d => genreScale(d.genre))
+                                                           .attr("y", d => percentScale(d.percentpass))
+                                                           .attr("height", d => percentScale(0) - percentScale(d.percentpass))
+                                                           .attr("width", genreScale.bandwidth()) ),
+                    exit => exit.call( exit => exit.transition().attr('opacity',0).remove() ) ); // Animate opacity to fade out
+  }   
+  updateBars( 'All Years' );
   
-  
-  
-  
-  
-           
-  // NOW TURN IT INTO A FUNCTION
-  
-  
-  
-  
-  
-  
-  
-  // NOW ANIMATE IT! (optional vid)
-  
-  
-  
-  
-  
-  
+  //Grabs the labels for our buttons
+  const allKeys = Object.keys( yearData ).sort();
+  console.log( allKeys );
+  allKeys.forEach( d => {
+    d3.select( "div#button-bar" )
+      .append( "button" )
+      .text( d )
+      .on( "click", function() {
+        updateBars( d );
+      } )
+
+  });
+ 
   
   });  
   
