@@ -62,56 +62,190 @@
   <script id="notes1">
 
   // Do the usual things to set up the chart area and incorporate margins
+  const svg = d3.select( "svg#lineplot" );
+  const width = svg.attr( "width" );
+  const height = svg.attr( "height" );
 
+  const margin = { top: 10, right: 10, bottom: 50, left: 50};
+
+  const chartWidth = width - margin.left - margin.right;
+  const chartHeight = height - margin.top - margin.bottom;
+
+  let annotations = svg.append( "g" ).attr( "id", "annotations" );
+  let chartArea = svg.append( "g" ).attr( "id", "points" )
+                     .attr( "transform", `translate( ${ margin.left }, ${ margin.top })` );
 
   // Import some CSV data
-  // d3.csv("../datasets/co2.csv", d3.autoType)
-  //   .then( (data) => {
-  
-  
+  d3.csv("../datasets/co2.csv", d3.autoType)
+    .then( (data) => {
   // Data cleanup?    
-      
-      
-  // Now make the chart!
+  console.log( data );
+
+  //Changing the string date into an object date
+  const parseTime = d3.timeParse( '%Y-%m-%d' );
+
+  data.forEach( d => {
+    d[ 'date' ] = parseTime( d[ 'String Date' ] );
+
+  });
+
+  const dateExtent = d3.extent( data, d => d[ 'date' ] );
+  const dateScale = d3.scaleTime().domain( dateExtent ).range ( [ 0, chartWidth] );
+
+  const carbonExtent = d3.extent( data, d => d[ 'Carbon Dioxide (ppm)' ] );
+  const carbonScale = d3.scaleLinear().domain( carbonExtent ).range ( [ chartHeight, 0] );
+
+  // Y axis -----------------------------------------
+  let leftAxis = d3.axisLeft(carbonScale)
+  let leftGridlines = d3.axisLeft(carbonScale)
+                        .tickSize(-chartWidth-10)
+                        .tickFormat("")
+  annotations.append("g")
+    .attr("class", "y axis")
+    .attr("transform",`translate(${margin.left-10},${margin.top})`)
+    .call(leftAxis)
+  annotations.append("g")
+    .attr("class", "y gridlines")
+    .attr("transform",`translate(${margin.left-10},${margin.top})`)
+    .call(leftGridlines);
   
+  // X axis -------------------------------------------
+  let bottomAxis = d3.axisBottom(dateScale)
+  let bottomGridlines = d3.axisBottom(dateScale)
+                          .tickSize(-chartHeight-10)
+                          .tickFormat("")
+  annotations.append("g")
+    .attr("class", "x axis")
+    .attr("transform",`translate(${margin.left},${chartHeight+margin.top+10})`)
+    .call(bottomAxis);
+  annotations.append("g")
+    .attr("class", "x gridlines")
+    .attr("transform",`translate(${margin.left},${chartHeight+margin.top+10})`)
+    .call(bottomGridlines);
+        
+  // Now make the chart! ---------------------------------
+  var lineGen = d3.line()
+                  .x( d => dateScale( d['date'] ) )
+                  .y( d => carbonScale( d['Carbon Dioxide (ppm)'] ) )
+                  .curve( d3.curveMonotoneX );
+
+  //a single piece of data (datum) is going to be our one line. "d" is now the entire dataset instead of the singular datapoint
+  chartArea.append( "path" )
+           .datum( data )
+           .attr( "class", "line" )
+           .attr( "fill", "none" )
+           .attr( "stroke", "steelblue" )
+           .attr( "stroke-width", 3 )
+           .attr( "d", lineGen )
   
-  
-  
-  
-  
-  
+  chartArea.selectAll( "circle" ).data( data )
+           .join( "circle" )
+           .attr( "r", 3 )
+           .attr( "fill", "navy" )
+           .attr( "cx", d => dateScale( d['date'] ) )
+           .attr( "cy", d => carbonScale( d['Carbon Dioxide (ppm)'] ) )
   
   // 6. Stretch goal - add a detailed mouseover
   
   // // Add marker lines, circles, and label to use in our mouseovers
-  // let mouseGroup = chartArea.append("g");
-  // let xMarker = mouseGroup.append("line")
-  //   .attr("id","xMarker")
-  //   .attr("fill","none")
-  //   .attr("stroke","black")
-  //   .attr("stroke-width",1)
-  //   .attr("y1",0)
-  //   .attr("y2",chartHeight)
-  //   .attr("visibility","hidden");
-  // 
-  // let valueMarker = mouseGroup.append("circle")
-  //   .attr("id","valueMarker")
-  //   .attr("fill","none")
-  //   .attr("stroke","black")
-  //   .attr("stroke-width",2)
-  //   .attr("r",10)
-  //   .attr("visibility","hidden");
-  // 
-  // let label = mouseGroup.append("text")
-  //   .attr("id","label")
-  //   .attr("visibility","hidden");
+  let mouseGroup = chartArea.append("g");
+  let xMarker = mouseGroup.append("line")
+    .attr("id","xMarker")
+    .attr("fill","none")
+    .attr("stroke","black")
+    .attr("stroke-width",1)
+    .attr("y1",0)
+    .attr("y2",chartHeight)
+    .attr("visibility","hidden");
   
+  let valueMarker = mouseGroup.append("circle")
+    .attr("id","valueMarker")
+    .attr("fill","none")
+    .attr("stroke","black")
+    .attr("stroke-width",2)
+    .attr("r",10)
+    .attr("visibility","hidden");
   
+  let label = mouseGroup.append("text")
+    .attr("id","label")
+    .attr("visibility","hidden");
+
+  // Start simple - just see if we can make valueMarker track the mouse
+  // This won't work because it only seems to move correctly when there is stuff on the canvas
+  // For empty spaces it won't work because of the way mousemove is handled on SVG
+  // chartArea.on("mousemove", function(evt) {
+  //   console.log(evt);
+  //   let location = d3.pointer(evt);
+  //   console.log(location);
+  //   valueMarker.attr("visibility", "")
+  //              .attr("cx",location[0])
+  //              .attr("cy",location[1]);
+  // });
   
+  let activeRegion = mouseGroup.append( "rect" )
+      .attr( "id", "activeRegion" )
+      .attr( "width", chartWidth )
+      .attr( "height", chartHeight )
+      .attr( "x", 0 )
+      .attr( "y", 0 )
+      .attr( "fill", "none" )
+      .attr( "pointer-events", "all" );
+
+  activeRegion.on( "mouseover", function( evt) {
+    xMarker.attr( "visibility", "" )
+    valueMarker.attr( "visibility", "" )
+    label.attr( "visibility", "" )
+
+  });
   
+  activeRegion.on( "mouseout", function( evt ) {
+    xMarker.attr( "visibility", "hidden" )
+    valueMarker.attr( "visibility", "hidden" )
+    label.attr( "visibility", "hidden" )
+
+  });      
+
+  let findDate = d3.bisector( d => d.date ).right;
+
+  activeRegion.on( "mousemove", function( evt ) {
+    console.log( evt );
+    let location = d3.pointer( evt );
+    console.log( location );
+
+    let x = location[ 0 ];
+    let xDate = dateScale.invert( x );
+    console.log( "xDate", xDate);
+
+    let index = findDate( data, xDate );
+    let d = data[ index ];
+    let xPos = dateScale( d[ 'date' ] );
+    let yPos = carbonScale( d[ 'Carbon Dioxide (ppm)' ] );
+
+    xMarker.attr( "x1", xPos ).attr( "x2", xPos );
+    valueMarker.attr( "cx", xPos ).attr( "cy", yPos );
+
+    let txt = d[ 'Carbon Dioxide (ppm)' ];
+    //label.attr( "x", xPos ).attr( "y", yPos-20 ).text( txt );
+
+    label.text( txt );
+    if ( xPos < chartWidth / 2.0 ) {
+      //LEFT CHART
+      label.attr( "x", xPos+4 ).attr( "y", 100)
+           .attr( "text-anchor", "start" );
+
+
+    } 
+    else {
+      //RIGHT CHART
+      label.attr( "x", xPos-4 ).attr( "y", chartHeight-100 )
+           .attr( "text-anchor", "end" );
+
+    }
+
+  })
+
   
-  
-  // });  
+  });  
   
   
   
