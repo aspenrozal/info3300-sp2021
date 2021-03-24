@@ -80,25 +80,51 @@
                   .attr("transform","translate("+margin.left+","+margin.top+")");
 
   // 0. Let's explore a new way to use promises for data imports that might be a bit cleaner when importing lots of files
-  
-  
+  // const testFunc = async function () {
+  //   return "hello!";
+
+  // };
+  // console.log( testFunc() );
   
   // 1. Our async function to build the map
-  
+  const requestData = async function() {
+
     // 2. Draw a map of US using topoJSON
     // 2a. Import data as synchronous call to topoJSON data file
     // Care of Mike Bostock:
     //   "../datasets/us.json"
-    
+    const us = await d3.json( "../datasets/us-smaller.json" );
+    console.log( us );
     
     // 2b. Pick out topographic features and build d3 helpers
-    
-    
-    // 2c. Draw states and outlines
+    var states = topojson.feature( us, us.objects.states );
+    //OUTLINES
+    var statesMesh = topojson.mesh( us, us.objects.states );
+    console.log( statesMesh );
 
+    var projection = d3.geoAlbersUsa().fitSize( [ mapWidth, mapHeight ], states );
+    var path = d3.geoPath().projection( projection );
+    
+    // 2d. Add a graticule - background lat-long lines
+    const graticule = d3.geoGraticule10();
+    map.append( "path" ).datum( graticule )
+       .attr( "class", "graticule" )
+       .attr( "d", path );
+
+    // 2c. Draw states and outlines
+    //map is the name of svg - this is a datajoin
+    map.selectAll( "path.state" ).data( states.features )
+       .join( "path" )
+       .attr( "class", "state" )
+       .attr( "note", d => d.id )
+       .attr( "d", path );
        
-    // 2d. Add a graticule
-  
+    map.append( "path" ).datum( statesMesh )
+       .attr( "class", "outline" )
+       .attr( "d", path );
+
+    
+    
   
     // 3a. Import survey data as synchronous calls
     // "../datasets/us-state-names.tsv"
@@ -146,8 +172,8 @@
     //                  .attr("x", 0)
     //                  .attr("y", 22);
     
-    
-
+  }
+  requestData();
 
 
 
