@@ -100,18 +100,47 @@
     const nation = topojson.feature(us, us.objects.nation);
     const statesMesh = topojson.mesh(us, us.objects.states);
     
+    ffmap.selectAll( "path.nation" ).data( nation.features )
+         .join( "path" )
+         .attr( "class", "nation" )
+         .attr( "d", path ); 
     
+    ffmap.append( "path" ).datum( statesMesh )
+         .attr( "class", "outline" )
+         .attr( "opacity", 1 )
+         .attr( "d", path );
     
+    //We are converting lat/long into pixels *before* we use them to map points
+    fastfood.forEach( (d) => {
+      d.position = projection( [ d.longitude, d.latitude ] );
+    });
     
+    let contourGen = d3.contourDensity()
+                       .x( d => d.position[ 0 ] )
+                       .y( d => d.position[ 1 ] )
+                       .size( [ ffwidth, ffheight ] )
+                       .thresholds( 15 );
     
+    let contours = contourGen( fastfood );
+    //console.log( contours );
+
+    let valueExtent = d3.extent( contours, d => d.value );
+    let colorScale = d3.scaleSequential( d3.interpolateViridis ).domain( valueExtent );
+
+    let layer = ffmap.append( "g" );
+
+    layer.selectAll( "path.contours" ).data( contours )
+         .join( "path" )
+         .attr( "class", "contours" )
+         .attr( "fill", d => colorScale( d.value ) )
+         .attr( "d", d3.geoPath() );
     
+    ffmap.append( "path" ).datum( statesMesh )
+         .attr( "class", "outline" )
+         .attr( "opacity", 0.5 )
+         .attr( "d", path );
     
-    
-    
-    
-    
-    
-    // // We can show the circles to see whether our densities are plausible
+    // We can show the circles to see whether our densities are plausible
     // ffmap.selectAll("circle.dot").data(fastfood)
     //      .join("circle")
     //      .attr("class","dot")
@@ -120,7 +149,6 @@
     //      .attr("opacity", 0.2)
     //      .attr("cx", d => d.position[0])
     //      .attr("cy", d => d.position[1]);
-    
     
   }
   requestData1();
@@ -137,21 +165,101 @@
     // Are slap shots attempted from different places than wrist shots?
     //  (hint: yes they are, and density contours can illustrate!)
     const layer = d3.select("#hockey g#contours");
-    const data = await d3.csv("../datasets/nhl_goals_2019.csv", d3.autoType)
+    let data = await d3.csv("../datasets/nhl_goals_2019.csv", d3.autoType)
     
+    data = data.filter( d => d[ 'event_type' ] === 'GOAL' && d[ 'event_detail' ] !== 'NA' );
+    console.log( data );
     
-    
-    
-    
-    
-    
+    data.forEach( d => {
+      d[ 'coords_x' ] = Math.abs( d[ 'coords_x' ] );
+    });
+
+    //SCALES
+    let xScale = d3.scaleLinear()
+                   .domain( [ 0, 100 ] )
+                   .range( [ 0, 400 ] );
+    let yScale = d3.scaleLinear()
+                   .domain( [ -42.5, 42.5 ] )
+                   .range( [ 0, 340 ] );
+    let ordScale = d3.scaleOrdinal( d3.schemeCategory10 );
+
+    //CIRCLES ----
+    // data.forEach( d => {
+    //   layer.append( "circle" )
+    //        .attr( "r", 4 )
+    //        .attr( "cx", xScale( d[ 'coords_x' ] ) )
+    //        .attr( "cy", yScale( d[ 'coords_y' ] ) )
+    //        .attr( "opacity", 0.2 )
+    //        .attr( "fill", ordScale( d[ 'event_detail' ] ) );
+
+    // });
+
+    let contourGen = d3.contourDensity()
+                       .x( d => xScale( d[ 'coords_x' ] ) )
+                       .y( d => yScale( d[ 'coords_y' ] ) )
+                       .size( [ 400, 300 ] )
+                       .thresholds( 10 );
+
+    let contours = contourGen( data );
+    let valueExtent = d3.extent( contours, d => d.value );
+    let colorScale = d3.scaleSequential( d3.interpolateBuGn ).domain( valueExtent );
+
+    layer.selectAll( "path.All" ).data( contours )
+         .join( "path" )
+         .attr( "class", "All" )
+         .attr( "stroke", "black" )
+         .attr( "fill", d => colorScale( d.value ) )
+         .attr( "d", d3.geoPath() );
+
     // *Make a legend for all of the shot types*
-    
-    
-  
-  
-  
-  
+    let types = new Set ( d3.map( data, d => d[ 'event_detail' ] ) );
+    console.log( types );
+
+    types.forEach( shotType => {
+      //Unique color for each shot
+      let color = ordScale( shotType );
+
+      //find out the data
+      let filterData = data.filter( d => d[ 'event_detail' ] === shotType);
+      let contours = contourGen( filterData );
+
+      let filteredValueExtent = d3.extent( contours, d => d.value );
+      let filteredColorScale = d3.scaleLinear()
+                                 .domain( filteredValueExtent )
+                                 .range( [ "white", color ] )
+                                 .interpolate( d3.interpolateHcl );
+
+      //Draw a contour
+      layer.selectAll( `path.${ shotType }` ).data( contours )
+         .join( "path" )
+         .attr( "class", shotType )
+         .attr( "stroke", "black" )
+         .attr( "fill", d => filteredColorScale( d.value ) )
+         .attr( "d", d3.geoPath() );
+
+      //Add to legend and wire it up
+      d3.select( "#legend" )
+        .append( "span" )
+        .text( shotType )
+        .style( "color", color )
+        .on( "mouseover", function() {
+          layer.selectAll( "path" ).attr( "visibility",  "hidden" );
+          layer.selectAll( `path.${ shotType }` ).attr( "visibility",  "" );
+        });
+
+    });
+
+    layer.selectAll( "path" ).attr( "visibility",  "hidden" );
+    layer.selectAll( "path.All" ).attr( "visibility",  "" );
+
+    d3.select( "#legend" )
+        .append( "span" )
+        .text( "All" )
+        .style( "color", "black" )
+        .on( "mouseover", function() {
+          layer.selectAll( "path" ).attr( "visibility",  "hidden" );
+          layer.selectAll( "path.All" ).attr( "visibility",  "" );
+        });
   
   }
   requestData2();
