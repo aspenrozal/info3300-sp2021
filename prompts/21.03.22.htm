@@ -98,6 +98,7 @@
     
     // 2b. Pick out topographic features and build d3 helpers
     var states = topojson.feature( us, us.objects.states );
+    console.log( "STATES", states );
     //OUTLINES
     var statesMesh = topojson.mesh( us, us.objects.states );
     console.log( statesMesh );
