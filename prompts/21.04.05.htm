@@ -84,6 +84,7 @@
 
     var links = []; //sparse stuff
     let edgeMatrix = karate.edges;
+    console.log( "EDGE", karate.edges);
 
     for ( let i=0; i < nodes.length; i++ ) {
       for ( let j=i; j < nodes.length; j++ ) {
@@ -96,6 +97,7 @@
       }
     }
 
+    console.log( "NODES", nodes );
     var sim = d3.forceSimulation()
                 .nodes( nodes )
                 .force( "links", d3.forceLink()
@@ -106,7 +108,7 @@
                 .on( "tick", render );
 
     console.log( nodes );
-    console.log( links );
+    console.log( "LINKS", links );
     // Do any pre-computing of ticks to smooth the animation?
     // You could do them here so the graph "starts out" in a nice fashion
     
