@@ -116,12 +116,13 @@
 
     // Now import our fastfood dataset
     var fastfood = await d3.csv("../datasets/fastfood.csv", d3.autoType);
-    //console.log(fastfood)
+    console.log(fastfood)
     
     fastfood.forEach( d => {
       d.position = projection( [ d.longitude, d.latitude ] );
-
     });
+
+    console.log( "FASTFOOD", fastfood );
 
     ffmap.selectAll( "circle.dot" ).data( fastfood )
          .join( "circle" )
